@@ -1,0 +1,10 @@
+Django>=4.2
+djangorestframework
+django-cors-headers
+django-filter
+python-dotenv
+django-environ
+PyMySQL
+gunicorn
+reportlab
+Pillow
