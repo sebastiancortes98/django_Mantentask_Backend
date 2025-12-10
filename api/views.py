@@ -4,10 +4,12 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.shortcuts import get_object_or_404
 from django.core.mail import send_mail
+from django.core.mail.backends.base import BaseEmailBackend
 from django.conf import settings
 from django.http import FileResponse
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
+import logging
 
 from .models import (
     Usuario, TipoUsuario, NivelAcceso, Sucursal, 
@@ -20,6 +22,8 @@ from .serializers import (
     InformeSerializer, InformeCreateUpdateSerializer, TaskSerializer
 )
 from .utils import generar_pdf_informe
+
+logger = logging.getLogger(__name__)
 
 
 class TipoUsuarioViewSet(viewsets.ModelViewSet):
@@ -214,54 +218,64 @@ class SolicitudViewSet(viewsets.ModelViewSet):
     
     def _enviar_notificacion_nueva_solicitud(self, solicitud):
         """Enviar correo de notificación por nueva solicitud"""
-        subject = f'Nueva Solicitud #{solicitud.codigo_solicitud}'
-        message = f"""
-        Se ha creado una nueva solicitud de mantenimiento.
-        
-        Solicitud: #{solicitud.codigo_solicitud}
-        Máquina: {solicitud.codigo_maquinaria.marca} {solicitud.codigo_maquinaria.modelo}
-        Usuario: {solicitud.id_usuario.get_full_name()}
-        Descripción: {solicitud.descripcion}
-        Estado: {solicitud.codigo_estado.nombre_estado}
-        Fecha: {solicitud.fecha_creacion.strftime('%d/%m/%Y %H:%M')}
-        """
-        
-        # Enviar a administradores o ingenieros
-        destinatarios = Usuario.objects.filter(
-            codigo_tipo_usuario=1,  # Ingenieros
-            is_active=True
-        ).values_list('correo_electronico', flat=True)
-        
-        if destinatarios:
+        try:
+            subject = f'Nueva Solicitud #{solicitud.codigo_solicitud}'
+            message = f"""
+            Se ha creado una nueva solicitud de mantenimiento.
+            
+            Solicitud: #{solicitud.codigo_solicitud}
+            Máquina: {solicitud.codigo_maquinaria.marca} {solicitud.codigo_maquinaria.modelo}
+            Usuario: {solicitud.id_usuario.get_full_name()}
+            Descripción: {solicitud.descripcion}
+            Estado: {solicitud.codigo_estado.nombre_estado}
+            Fecha: {solicitud.fecha_creacion.strftime('%d/%m/%Y %H:%M')}
+            """
+            
+            # Enviar a administradores o ingenieros
+            destinatarios = Usuario.objects.filter(
+                codigo_tipo_usuario=1,  # Ingenieros
+                is_active=True
+            ).values_list('correo_electronico', flat=True)
+            
+            if destinatarios:
+                send_mail(
+                    subject,
+                    message,
+                    settings.DEFAULT_FROM_EMAIL,
+                    list(destinatarios),
+                    fail_silently=False,
+                )
+                logger.info(f"Notificación enviada a {len(destinatarios)} ingenieros para solicitud #{solicitud.codigo_solicitud}")
+        except Exception as e:
+            logger.error(f"Error enviando notificación de nueva solicitud: {str(e)}")
+            # No interrumpir el flujo si falla el email
+    
+    def _enviar_notificacion_cambio_estado(self, solicitud, estado_anterior):
+        """Enviar correo de notificación por cambio de estado"""
+        try:
+            subject = f'Cambio de Estado - Solicitud #{solicitud.codigo_solicitud}'
+            message = f"""
+            La solicitud de mantenimiento ha cambiado de estado.
+            
+            Solicitud: #{solicitud.codigo_solicitud}
+            Estado anterior: {estado_anterior.nombre_estado}
+            Estado nuevo: {solicitud.codigo_estado.nombre_estado}
+            Máquina: {solicitud.codigo_maquinaria.marca} {solicitud.codigo_maquinaria.modelo}
+            Fecha actualización: {solicitud.fecha_actualizacion.strftime('%d/%m/%Y %H:%M')}
+            """
+            
+            # Enviar al usuario que creó la solicitud
             send_mail(
                 subject,
                 message,
                 settings.DEFAULT_FROM_EMAIL,
-                list(destinatarios),
+                [solicitud.id_usuario.correo_electronico],
                 fail_silently=False,
             )
-    
-    def _enviar_notificacion_cambio_estado(self, solicitud, estado_anterior):
-        """Enviar correo de notificación por cambio de estado"""
-        subject = f'Cambio de Estado - Solicitud #{solicitud.codigo_solicitud}'
-        message = f"""
-        La solicitud de mantenimiento ha cambiado de estado.
-        
-        Solicitud: #{solicitud.codigo_solicitud}
-        Estado anterior: {estado_anterior.nombre_estado}
-        Estado nuevo: {solicitud.codigo_estado.nombre_estado}
-        Máquina: {solicitud.codigo_maquinaria.marca} {solicitud.codigo_maquinaria.modelo}
-        Fecha actualización: {solicitud.fecha_actualizacion.strftime('%d/%m/%Y %H:%M')}
-        """
-        
-        # Enviar al usuario que creó la solicitud
-        send_mail(
-            subject,
-            message,
-            settings.DEFAULT_FROM_EMAIL,
-            [solicitud.id_usuario.correo_electronico],
-            fail_silently=False,
-        )
+            logger.info(f"Notificación de cambio de estado enviada a {solicitud.id_usuario.correo_electronico} para solicitud #{solicitud.codigo_solicitud}")
+        except Exception as e:
+            logger.error(f"Error enviando notificación de cambio de estado: {str(e)}")
+            # No interrumpir el flujo si falla el email
 
 
 class InformeViewSet(viewsets.ModelViewSet):

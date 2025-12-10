@@ -32,7 +32,74 @@ python manage.py createsuperuser
 python manage.py runserver
 ```
 
-API básica bajo `/api/tasks/` (lista y CRUD).
+## Sistema de Email
+
+Para habilitar notificaciones automáticas por correo:
+
+1. **Opción 1: Gmail (recomendado)**
+   - Ve a https://myaccount.google.com/apppasswords
+   - Genera una "Contraseña de aplicación"
+   - En `.env`, configura:
+     ```env
+     EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
+     EMAIL_HOST=smtp.gmail.com
+     EMAIL_PORT=587
+     EMAIL_USE_TLS=True
+     EMAIL_HOST_USER=tu-email@gmail.com
+     EMAIL_HOST_PASSWORD=xxxx-xxxx-xxxx-xxxx
+     DEFAULT_FROM_EMAIL=tu-email@gmail.com
+     ```
+
+2. **Opción 2: Outlook/Office365**
+   ```env
+   EMAIL_HOST=smtp.office365.com
+   EMAIL_PORT=587
+   EMAIL_USE_TLS=True
+   ```
+
+3. **Prueba la configuración:**
+   ```powershell
+   python manage.py test_email --email tu-email@gmail.com
+   ```
+
+Ver `EMAIL_CONFIG.md` para más detalles.
+
+## Datos de Prueba
+
+Crea datos de prueba automáticamente:
+
+```powershell
+python manage.py create_test_data
+```
+
+Credenciales de prueba:
+- Admin: `admin / admin123`
+- Ingeniero: `jperez / ingeniero123`
+- Encargado: `crodriguez / encargado123`
+
+## API REST
+
+La API completa está disponible en `/api/`. 
+
+Endpoints principales:
+- `GET /api/maquinas/` - Listar máquinas
+- `GET /api/solicitudes/` - Listar solicitudes
+- `GET /api/informes/` - Listar informes
+- `GET /api/usuarios/` - Listar usuarios
+- `POST /api/solicitudes/` - Crear solicitud (envía notificación por correo)
+- `POST /api/informes/` - Crear informe (genera PDF automático)
+
+Ver `API_DOCUMENTATION.md` para documentación completa.
+
+## Panel de Administración
+
+Accede a `http://127.0.0.1:8000/admin/` con credenciales de superusuario.
+
+## Ejecutar Pruebas
+
+```powershell
+python manage.py test
+```
 
 MySQL setup (opcional)
 
