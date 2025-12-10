@@ -5,6 +5,7 @@ from .views import (
     UsuarioViewSet, EstadoViewSet, MaquinaViewSet,
     SolicitudViewSet, InformeViewSet, TaskViewSet
 )
+from .auth import auth_login, auth_logout, auth_me, auth_register
 
 # Router para endpoints REST
 router = routers.DefaultRouter()
@@ -21,5 +22,12 @@ router.register(r'informes', InformeViewSet, basename='informe')
 router.register(r'tasks', TaskViewSet, basename='task')
 
 urlpatterns = [
+    # Autenticación
+    path('auth/login/', auth_login, name='auth-login'),
+    path('auth/logout/', auth_logout, name='auth-logout'),
+    path('auth/me/', auth_me, name='auth-me'),
+    path('auth/register/', auth_register, name='auth-register'),
+    
+    # REST endpoints
     path('', include(router.urls)),
 ]

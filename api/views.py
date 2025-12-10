@@ -60,6 +60,15 @@ class UsuarioViewSet(viewsets.ModelViewSet):
     search_fields = ['username', 'first_name', 'apellido_paterno', 'apellido_materno', 'correo_electronico']
     ordering_fields = ['date_joined', 'username']
     
+    def get_permissions(self):
+        """
+        Permitir GET sin autenticación
+        Requerir autenticación para POST, PUT, PATCH, DELETE
+        """
+        if self.request.method in ['GET', 'HEAD', 'OPTIONS']:
+            return [AllowAny()]
+        return [IsAuthenticated()]
+    
     @action(detail=False, methods=['get'])
     def me(self, request):
         """Obtener información del usuario actual"""
@@ -100,6 +109,15 @@ class MaquinaViewSet(viewsets.ModelViewSet):
     search_fields = ['modelo', 'marca']
     ordering_fields = ['fecha_compra', 'fecha_instalacion', 'fecha_ultima_mantencion']
     
+    def get_permissions(self):
+        """
+        Permitir GET sin autenticación
+        Requerir autenticación para POST, PUT, PATCH, DELETE
+        """
+        if self.request.method in ['GET', 'HEAD', 'OPTIONS']:
+            return [AllowAny()]
+        return [IsAuthenticated()]
+    
     @action(detail=False, methods=['get'])
     def por_sucursal(self, request):
         """Listar máquinas agrupadas por sucursal"""
@@ -128,6 +146,15 @@ class SolicitudViewSet(viewsets.ModelViewSet):
     filterset_fields = ['codigo_estado', 'codigo_maquinaria', 'id_usuario']
     search_fields = ['descripcion']
     ordering_fields = ['fecha_creacion', 'fecha_actualizacion']
+    
+    def get_permissions(self):
+        """
+        Permitir GET sin autenticación
+        Requerir autenticación para POST, PUT, PATCH, DELETE
+        """
+        if self.request.method in ['GET', 'HEAD', 'OPTIONS']:
+            return [AllowAny()]
+        return [IsAuthenticated()]
     
     def get_serializer_class(self):
         if self.action in ['create', 'update', 'partial_update']:
@@ -285,6 +312,15 @@ class InformeViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
     filterset_fields = ['codigo_maquinaria', 'id_usuario']
     ordering_fields = ['fecha_informe']
+    
+    def get_permissions(self):
+        """
+        Permitir GET sin autenticación
+        Requerir autenticación para POST, PUT, PATCH, DELETE
+        """
+        if self.request.method in ['GET', 'HEAD', 'OPTIONS']:
+            return [AllowAny()]
+        return [IsAuthenticated()]
     
     def get_serializer_class(self):
         if self.action in ['create', 'update', 'partial_update']:

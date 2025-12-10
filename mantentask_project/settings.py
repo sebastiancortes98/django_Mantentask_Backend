@@ -30,7 +30,8 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
+    'mantentask_project.middleware.DisableCSRFMiddleware',  # Deshabilitar CSRF para /api/
+    # 'django.middleware.csrf.CsrfViewMiddleware',  # Deshabilitado para desarrollo con REST API
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
@@ -130,7 +131,10 @@ REST_FRAMEWORK = {
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',
         'rest_framework.renderers.BrowsableAPIRenderer',
-    ]
+    ],
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.SessionAuthentication',
+    ],
 }
 
 # Configuración de correo electrónico
@@ -175,3 +179,8 @@ LOGGING = {
         },
     },
 }
+
+# Ignorar CSRF token para APIs en desarrollo
+CSRF_TRUSTED_ORIGINS = ['http://127.0.0.1:3000', 'http://localhost:3000']
+CSRF_COOKIE_SECURE = False
+CSRF_COOKIE_HTTPONLY = False
