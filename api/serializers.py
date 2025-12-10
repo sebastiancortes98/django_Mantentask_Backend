@@ -41,8 +41,8 @@ class UsuarioSerializer(serializers.ModelSerializer):
             'nombre_completo', 'is_active', 'date_joined'
         ]
         extra_kwargs = {
-            'contrasena': {'write_only': True},
-            'password': {'write_only': True}
+            'contrasena': {'write_only': True, 'required': False},
+            'password': {'write_only': True, 'required': False}
         }
     
     def create(self, validated_data):
