@@ -336,7 +336,7 @@ class InformeViewSet(viewsets.ModelViewSet):
     
     @action(detail=True, methods=['post'])
     def regenerar_pdf(self, request, pk=None):
-        """Regenerar PDF del informe"""
+        """Enviar informe por correo electrónico con PDF adjunto"""
         informe = self.get_object()
         
         try:
@@ -351,7 +351,7 @@ class InformeViewSet(viewsets.ModelViewSet):
     
     @action(detail=True, methods=['post'])
     def enviar_por_correo(self, request, pk=None):
-        """Enviar informe por correo electrónico"""
+        """Enviar informe por correo electrónico con PDF adjunto"""
         informe = self.get_object()
         destinatario = request.data.get('email')
         
@@ -362,32 +362,49 @@ class InformeViewSet(viewsets.ModelViewSet):
             )
         
         try:
+            from django.core.mail import EmailMessage
+            
             # Asegurar que existe el PDF
             if not informe.archivo_pdf:
                 generar_pdf_informe(informe)
             
             subject = f'Informe de Mantenimiento - Solicitud #{informe.codigo_solicitud.codigo_solicitud}'
-            message = f"""
-            Adjunto encontrará el informe de mantenimiento.
-            
-            Solicitud: #{informe.codigo_solicitud.codigo_solicitud}
-            Máquina: {informe.codigo_maquinaria.marca} {informe.codigo_maquinaria.modelo}
-            Fecha: {informe.fecha_informe.strftime('%d/%m/%Y %H:%M')}
+            message = f"""Estimado cliente,
+
+Adjunto encontrará el informe de mantenimiento solicitado.
+
+Detalles:
+- Solicitud: #{informe.codigo_solicitud.codigo_solicitud}
+- Máquina: {informe.codigo_maquinaria.marca} {informe.codigo_maquinaria.modelo}
+- Fecha: {informe.fecha_informe.strftime('%d/%m/%Y %H:%M')}
+- Descripción: {informe.descripcion[:200]}...
+
+Saludos cordiales,
+Sistema MantenTask
             """
             
-            email = send_mail(
-                subject,
-                message,
-                settings.DEFAULT_FROM_EMAIL,
-                [destinatario],
-                fail_silently=False,
+            email = EmailMessage(
+                subject=subject,
+                body=message,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                to=[destinatario],
             )
             
-            # Adjuntar PDF (requiere configuración adicional)
-            # Ver implementación en utils.py
+            # Adjuntar el PDF
+            if informe.archivo_pdf:
+                email.attach_file(informe.archivo_pdf.path)
             
-            return Response({'mensaje': 'Correo enviado exitosamente'})
+            email.send(fail_silently=False)
+            
+            logger.info(f"Informe #{informe.codigo_solicitud.codigo_solicitud} enviado a {destinatario}")
+            
+            return Response({
+                'mensaje': 'Correo enviado exitosamente',
+                'destinatario': destinatario,
+                'adjunto': bool(informe.archivo_pdf)
+            })
         except Exception as e:
+            logger.error(f"Error al enviar correo con informe: {str(e)}")
             return Response(
                 {'error': f'Error al enviar correo: {str(e)}'}, 
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
