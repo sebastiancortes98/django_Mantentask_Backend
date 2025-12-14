@@ -2,7 +2,8 @@ from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
-from django.contrib.auth import authenticate, login, logout
+from rest_framework_simplejwt.tokens import RefreshToken
+from django.contrib.auth import authenticate
 from .models import Usuario
 from .serializers import UsuarioSerializer
 
@@ -13,6 +14,7 @@ def auth_login(request):
     """
     Login con usuario y contraseña
     Body: {"username": "user", "password": "pass"}
+    Retorna: JWT access_token y refresh_token
     """
     username = request.data.get('username')
     password = request.data.get('password')
@@ -37,12 +39,15 @@ def auth_login(request):
             status=status.HTTP_403_FORBIDDEN
         )
     
-    login(request, user)
+    # Generar tokens JWT
+    refresh = RefreshToken.for_user(user)
     serializer = UsuarioSerializer(user)
     
     return Response({
         'success': True,
         'message': 'Login exitoso',
+        'access_token': str(refresh.access_token),
+        'refresh_token': str(refresh),
         'user': serializer.data
     }, status=status.HTTP_200_OK)
 
@@ -51,12 +56,12 @@ def auth_login(request):
 @permission_classes([IsAuthenticated])
 def auth_logout(request):
     """
-    Logout de la sesión actual
+    Logout - Con JWT solo necesita borrar el token en el frontend
+    Este endpoint es opcional pero se mantiene para compatibilidad
     """
-    logout(request)
     return Response({
         'success': True,
-        'message': 'Logout exitoso'
+        'message': 'Logout exitoso. Borra el token del localStorage.'
     }, status=status.HTTP_200_OK)
 
 
