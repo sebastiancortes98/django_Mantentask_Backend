@@ -83,23 +83,23 @@ class Command(BaseCommand):
         
         # Crear usuario administrador por defecto
         sucursal_principal = Sucursal.objects.get(codigo_sucursal=1)
-        if not Usuario.objects.filter(username='admin').exists():
-            admin = Usuario.objects.create_user(
-                username='admin',
-                password='admin123',
-                first_name='Administrador',
-                apellido_paterno='Sistema',
-                apellido_materno='MantenTask',
-                correo_electronico='admin@mantentask.com',
-                codigo_tipo_usuario=2,  # Encargado
-                codigo_nivel_acceso=4,  # Administrador
-                codigo_sucursal=sucursal_principal,
-                is_staff=True,
-                is_superuser=True
-            )
-            self.stdout.write(self.style.SUCCESS('✓ Usuario administrador creado: admin/admin123'))
-        else:
-            self.stdout.write('  Usuario administrador ya existe')
+        # Eliminar si existe para recrearlo
+        Usuario.objects.filter(username='admin').delete()
+        
+        admin = Usuario.objects.create_user(
+            username='admin',
+            password='admin123',
+            first_name='Administrador',
+            apellido_paterno='Sistema',
+            apellido_materno='MantenTask',
+            correo_electronico='admin@mantentask.com',
+            codigo_tipo_usuario=2,  # Encargado
+            codigo_nivel_acceso=4,  # Administrador
+            codigo_sucursal=sucursal_principal,
+            is_staff=True,
+            is_superuser=True
+        )
+        self.stdout.write(self.style.SUCCESS('✓ Usuario administrador creado: admin / admin123'))
         
         # Crear máquinas de ejemplo
         maquinas = [
