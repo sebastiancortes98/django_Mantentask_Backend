@@ -21,6 +21,7 @@ class Usuario(AbstractUser):
     apellido_paterno = models.CharField(max_length=100)
     apellido_materno = models.CharField(max_length=100)
     correo_electronico = models.EmailField(unique=True, validators=[EmailValidator()])
+    telefono = models.CharField(max_length=20, blank=True, null=True)
     contrasena = models.CharField(max_length=128)  # Django maneja el hash automáticamente
     codigo_sucursal = models.ForeignKey('Sucursal', on_delete=models.SET_NULL, null=True, blank=True, related_name='usuarios')
     codigo_tipo_usuario = models.IntegerField(choices=TIPO_USUARIO_CHOICES)

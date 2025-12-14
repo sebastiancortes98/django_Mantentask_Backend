@@ -63,17 +63,25 @@ class Command(BaseCommand):
             else:
                 self.stdout.write(f'  Estado ya existe: {estado["nombre"]}')
         
-        # Crear sucursal por defecto
-        sucursal, created = Sucursal.objects.get_or_create(
-            codigo_sucursal=1,
-            defaults={'nombre_sucursal': 'Sucursal Principal'}
-        )
-        if created:
-            self.stdout.write(self.style.SUCCESS('✓ Sucursal creada: Sucursal Principal'))
-        else:
-            self.stdout.write('  Sucursal ya existe: Sucursal Principal')
+        # Crear sucursales
+        sucursales = [
+            {'codigo': 1, 'nombre': 'Sucursal Principal'},
+            {'codigo': 2, 'nombre': 'Sucursal Norte'},
+            {'codigo': 3, 'nombre': 'Sucursal Sur'},
+        ]
+        
+        for suc in sucursales:
+            obj, created = Sucursal.objects.get_or_create(
+                codigo_sucursal=suc['codigo'],
+                defaults={'nombre_sucursal': suc['nombre']}
+            )
+            if created:
+                self.stdout.write(self.style.SUCCESS(f'✓ Sucursal creada: {suc["nombre"]}'))
+            else:
+                self.stdout.write(f'  Sucursal ya existe: {suc["nombre"]}')
         
         # Crear usuario administrador por defecto
+        sucursal_principal = Sucursal.objects.get(codigo_sucursal=1)
         if not Usuario.objects.filter(username='admin').exists():
             admin = Usuario.objects.create_user(
                 username='admin',
@@ -84,7 +92,7 @@ class Command(BaseCommand):
                 correo_electronico='admin@mantentask.com',
                 codigo_tipo_usuario=2,  # Encargado
                 codigo_nivel_acceso=4,  # Administrador
-                codigo_sucursal=sucursal,
+                codigo_sucursal=sucursal_principal,
                 is_staff=True,
                 is_superuser=True
             )

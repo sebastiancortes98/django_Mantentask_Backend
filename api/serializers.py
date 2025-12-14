@@ -35,7 +35,7 @@ class UsuarioSerializer(serializers.ModelSerializer):
         model = Usuario
         fields = [
             'id_usuario', 'username', 'first_name', 'apellido_paterno', 
-            'apellido_materno', 'correo_electronico', 'password', 'contrasena',
+            'apellido_materno', 'correo_electronico', 'telefono', 'password', 'contrasena',
             'codigo_sucursal', 'sucursal', 'codigo_tipo_usuario', 
             'tipo_usuario_nombre', 'codigo_nivel_acceso', 'nivel_acceso_nombre',
             'nombre_completo', 'is_active', 'date_joined'
