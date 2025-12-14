@@ -1,13 +1,15 @@
 import os
 from pathlib import Path
 from dotenv import load_dotenv
+import pymysql
 
 base_dir = Path(__file__).resolve().parent.parent
 load_dotenv(base_dir / '.env')
+pymysql.install_as_MySQLdb()
 
 SECRET_KEY = os.getenv('SECRET_KEY', 'replace-me')
 DEBUG = os.getenv('DEBUG', 'True') == 'True'
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '127.0.0.1,localhost').split(',')
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '127.0.0.1,localhost,.onrender.com').split(',')
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -61,16 +63,18 @@ ASGI_APPLICATION = 'mantentask_project.asgi.application'
 # Database configuration
 # If `DB_NAME` is provided via environment variables, configure a MySQL
 # connection. Otherwise fall back to a local SQLite file for easy startup.
+DB_ENGINE = os.getenv('DB_ENGINE', 'mysql')
 DB_NAME = os.getenv('DB_NAME')
 if DB_NAME:
+    engine_backend = 'django.db.backends.mysql' if DB_ENGINE == 'mysql' else 'django.db.backends.postgresql'
     DATABASES = {
         'default': {
-            'ENGINE': 'django.db.backends.mysql',
+            'ENGINE': engine_backend,
             'NAME': DB_NAME,
             'USER': os.getenv('DB_USER', 'root'),
             'PASSWORD': os.getenv('DB_PASSWORD', ''),
             'HOST': os.getenv('DB_HOST', '127.0.0.1'),
-            'PORT': os.getenv('DB_PORT', '3306'),
+            'PORT': os.getenv('DB_PORT', '3306' if DB_ENGINE == 'mysql' else '5432'),
             'OPTIONS': {
                 'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
             },
@@ -121,6 +125,9 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:8080",
     "https://react-mantentask-frontend.vercel.app"
 ]
+CORS_EXTRA = os.getenv('CORS_ALLOWED_ORIGINS')
+if CORS_EXTRA:
+    CORS_ALLOWED_ORIGINS.extend([origin for origin in CORS_EXTRA.split(',') if origin])
 CORS_ALLOW_CREDENTIALS = True
 
 # REST framework defaults
