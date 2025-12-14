@@ -107,12 +107,14 @@ def auth_register(request):
     if serializer.is_valid():
         usuario = serializer.save()
         
-        # Login automático después del registro
-        login(request, usuario)
+        # Con JWT: devolver tokens en el registro
+        refresh = RefreshToken.for_user(usuario)
         
         return Response({
             'success': True,
             'message': 'Usuario registrado exitosamente',
+            'access_token': str(refresh.access_token),
+            'refresh_token': str(refresh),
             'user': UsuarioSerializer(usuario).data
         }, status=status.HTTP_201_CREATED)
     
