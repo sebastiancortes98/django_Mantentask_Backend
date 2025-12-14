@@ -2,7 +2,8 @@
 Script para inicializar datos básicos del sistema MantenTask
 """
 from django.core.management.base import BaseCommand
-from api.models import TipoUsuario, NivelAcceso, Estado, Sucursal, Usuario
+from api.models import TipoUsuario, NivelAcceso, Estado, Sucursal, Usuario, Maquina
+from datetime import date, timedelta
 
 
 class Command(BaseCommand):
@@ -99,5 +100,60 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS('✓ Usuario administrador creado: admin/admin123'))
         else:
             self.stdout.write('  Usuario administrador ya existe')
+        
+        # Crear máquinas de ejemplo
+        maquinas = [
+            {
+                'sucursal': 1,
+                'modelo': 'Compresor Industrial Pro 3000',
+                'marca': 'Atlas Copco',
+                'fecha_compra': date.today() - timedelta(days=730),
+                'fecha_instalacion': date.today() - timedelta(days=720),
+            },
+            {
+                'sucursal': 1,
+                'modelo': 'Torno CNC T-450',
+                'marca': 'Haas',
+                'fecha_compra': date.today() - timedelta(days=365),
+                'fecha_instalacion': date.today() - timedelta(days=355),
+            },
+            {
+                'sucursal': 2,
+                'modelo': 'Montacargas EFG 2.0',
+                'marca': 'Jungheinrich',
+                'fecha_compra': date.today() - timedelta(days=500),
+                'fecha_instalacion': date.today() - timedelta(days=490),
+            },
+            {
+                'sucursal': 2,
+                'modelo': 'Generador Diesel 150kW',
+                'marca': 'Caterpillar',
+                'fecha_compra': date.today() - timedelta(days=1000),
+                'fecha_instalacion': date.today() - timedelta(days=990),
+            },
+            {
+                'sucursal': 3,
+                'modelo': 'Bomba Centrífuga HC-500',
+                'marca': 'Grundfos',
+                'fecha_compra': date.today() - timedelta(days=600),
+                'fecha_instalacion': date.today() - timedelta(days=590),
+            },
+        ]
+        
+        for maq in maquinas:
+            sucursal = Sucursal.objects.get(codigo_sucursal=maq['sucursal'])
+            obj, created = Maquina.objects.get_or_create(
+                modelo=maq['modelo'],
+                marca=maq['marca'],
+                defaults={
+                    'codigo_sucursal': sucursal,
+                    'fecha_compra': maq['fecha_compra'],
+                    'fecha_instalacion': maq['fecha_instalacion'],
+                }
+            )
+            if created:
+                self.stdout.write(self.style.SUCCESS(f'✓ Máquina creada: {maq["marca"]} {maq["modelo"]}'))
+            else:
+                self.stdout.write(f'  Máquina ya existe: {maq["marca"]} {maq["modelo"]}')
         
         self.stdout.write(self.style.SUCCESS('\n¡Datos básicos inicializados correctamente!'))
