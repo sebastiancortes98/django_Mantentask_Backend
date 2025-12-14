@@ -290,7 +290,7 @@ class SolicitudViewSet(viewsets.ModelViewSet):
                     message,
                     settings.DEFAULT_FROM_EMAIL,
                     list(destinatarios),
-                    fail_silently=False,
+                    fail_silently=True,
                 )
                 logger.info(f"Notificación enviada a {len(destinatarios)} ingenieros para solicitud #{solicitud.codigo_solicitud}")
         except Exception as e:
@@ -317,7 +317,7 @@ class SolicitudViewSet(viewsets.ModelViewSet):
                 message,
                 settings.DEFAULT_FROM_EMAIL,
                 [solicitud.id_usuario.correo_electronico],
-                fail_silently=False,
+                fail_silently=True,
             )
             logger.info(f"Notificación de cambio de estado enviada a {solicitud.id_usuario.correo_electronico} para solicitud #{solicitud.codigo_solicitud}")
         except Exception as e:
