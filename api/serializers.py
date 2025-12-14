@@ -42,15 +42,22 @@ class UsuarioSerializer(serializers.ModelSerializer):
         ]
         extra_kwargs = {
             'contrasena': {'write_only': True, 'required': False},
-            'password': {'write_only': True, 'required': False}
+            'password': {'write_only': True, 'required': False},
+            'codigo_tipo_usuario': {'required': False},  # Default al crear
+            'codigo_nivel_acceso': {'required': False},  # Default al crear
+            'codigo_sucursal': {'required': False},  # Opcional
         }
     
     def create(self, validated_data):
         password = validated_data.pop('password', None)
+        # Defaults para nuevos usuarios
+        validated_data.setdefault('codigo_tipo_usuario', 1)  # Ingeniero
+        validated_data.setdefault('codigo_nivel_acceso', 1)  # Básico
+        
         usuario = Usuario(**validated_data)
         if password:
             usuario.set_password(password)
-            usuario.contrasena = usuario.password  # Sincronizar campo legacy
+            usuario.contrasena = usuario.password
         usuario.save()
         return usuario
     
