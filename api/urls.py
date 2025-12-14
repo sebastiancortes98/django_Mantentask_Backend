@@ -17,7 +17,10 @@ router.register(r'estados', EstadoViewSet, basename='estado')
 router.register(r'maquinas', MaquinaViewSet, basename='maquina')
 router.register(r'solicitudes', SolicitudViewSet, basename='solicitud')
 router.register(r'informes', InformeViewSet, basename='informe')
-router.register(r'admin', AdminDashboardViewSet, basename='admin-dashboard')
+# Endpoint legacy
+router.register(r'tasks', TaskViewSet, basename='task')
+
+urlpatterns = [
     # Autenticación
     path('auth/login/', auth_login, name='auth-login'),
     path('auth/logout/', auth_logout, name='auth-logout'),
