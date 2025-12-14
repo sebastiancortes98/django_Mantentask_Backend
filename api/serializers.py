@@ -133,7 +133,19 @@ class SolicitudCreateUpdateSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         if not attrs.get('id_usuario') and request and request.user and request.user.is_authenticated:
             attrs['id_usuario'] = request.user
+        # Si no viene codigo_estado, por defecto 1 (Pendiente)
+        if not attrs.get('codigo_estado'):
+            attrs['codigo_estado'] = 1
         return super().validate(attrs)
+
+    def create(self, validated_data):
+        # Refuerzo: si viene sin id_usuario, asignar request.user
+        request = self.context.get('request')
+        if not validated_data.get('id_usuario') and request and request.user and request.user.is_authenticated:
+            validated_data['id_usuario'] = request.user
+        if not validated_data.get('codigo_estado'):
+            validated_data['codigo_estado'] = 1
+        return super().create(validated_data)
 
     class Meta:
         model = Solicitud
@@ -142,6 +154,10 @@ class SolicitudCreateUpdateSerializer(serializers.ModelSerializer):
             'descripcion', 'codigo_estado'
         ]
         read_only_fields = ['codigo_solicitud']
+        extra_kwargs = {
+            'id_usuario': {'required': False},
+            'codigo_estado': {'required': False},
+        }
 
 
 class InformeSerializer(serializers.ModelSerializer):
