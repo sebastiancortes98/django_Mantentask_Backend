@@ -174,7 +174,12 @@ class SolicitudViewSet(viewsets.ModelViewSet):
     
     def create(self, request, *args, **kwargs):
         """Crear solicitud y enviar notificación"""
-        serializer = self.get_serializer(data=request.data)
+        data = request.data.copy()
+        # Forzar el usuario autenticado y estado inicial pendiente (1) si no viene
+        data.setdefault('id_usuario', request.user.id_usuario)
+        data.setdefault('codigo_estado', 1)
+
+        serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
         solicitud = serializer.save()
         
@@ -193,8 +198,12 @@ class SolicitudViewSet(viewsets.ModelViewSet):
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
         estado_anterior = instance.codigo_estado
-        
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+
+        data = request.data.copy()
+        # No permitir cambiar el usuario dueño desde el frontend
+        data['id_usuario'] = instance.id_usuario.id_usuario
+
+        serializer = self.get_serializer(instance, data=data, partial=partial)
         serializer.is_valid(raise_exception=True)
         solicitud = serializer.save()
         
