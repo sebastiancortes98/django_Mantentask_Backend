@@ -2,7 +2,7 @@
 Script para inicializar datos básicos del sistema MantenTask
 """
 from django.core.management.base import BaseCommand
-from api.models import TipoUsuario, NivelAcceso, Estado
+from api.models import TipoUsuario, NivelAcceso, Estado, Sucursal, Usuario
 
 
 class Command(BaseCommand):
@@ -62,5 +62,34 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.SUCCESS(f'✓ Estado creado: {estado["nombre"]}'))
             else:
                 self.stdout.write(f'  Estado ya existe: {estado["nombre"]}')
+        
+        # Crear sucursal por defecto
+        sucursal, created = Sucursal.objects.get_or_create(
+            codigo_sucursal=1,
+            defaults={'nombre_sucursal': 'Sucursal Principal'}
+        )
+        if created:
+            self.stdout.write(self.style.SUCCESS('✓ Sucursal creada: Sucursal Principal'))
+        else:
+            self.stdout.write('  Sucursal ya existe: Sucursal Principal')
+        
+        # Crear usuario administrador por defecto
+        if not Usuario.objects.filter(username='admin').exists():
+            admin = Usuario.objects.create_user(
+                username='admin',
+                password='admin123',
+                first_name='Administrador',
+                apellido_paterno='Sistema',
+                apellido_materno='MantenTask',
+                correo_electronico='admin@mantentask.com',
+                codigo_tipo_usuario=2,  # Encargado
+                codigo_nivel_acceso=4,  # Administrador
+                codigo_sucursal=sucursal,
+                is_staff=True,
+                is_superuser=True
+            )
+            self.stdout.write(self.style.SUCCESS('✓ Usuario administrador creado: admin/admin123'))
+        else:
+            self.stdout.write('  Usuario administrador ya existe')
         
         self.stdout.write(self.style.SUCCESS('\n¡Datos básicos inicializados correctamente!'))
