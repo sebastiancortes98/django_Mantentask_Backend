@@ -184,6 +184,8 @@ SIMPLE_JWT = {
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'ALGORITHM': 'HS256',
     'SIGNING_KEY': SECRET_KEY,
+    'USER_ID_FIELD': 'id_usuario',  # Campo custom en modelo Usuario
+    'USER_ID_CLAIM': 'user_id',
 }
 
 # Configuración de correo electrónico
