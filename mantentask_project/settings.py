@@ -1,11 +1,9 @@
 import os
 from pathlib import Path
 from dotenv import load_dotenv
-import pymysql
 
 base_dir = Path(__file__).resolve().parent.parent
 load_dotenv(base_dir / '.env')
-pymysql.install_as_MySQLdb()
 
 SECRET_KEY = os.getenv('SECRET_KEY', 'replace-me')
 DEBUG = os.getenv('DEBUG', 'True') == 'True'
