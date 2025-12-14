@@ -63,24 +63,49 @@ ASGI_APPLICATION = 'mantentask_project.asgi.application'
 # Database configuration
 # If `DB_NAME` is provided via environment variables, configure a MySQL
 # connection. Otherwise fall back to a local SQLite file for easy startup.
-DB_ENGINE = os.getenv('DB_ENGINE', 'mysql')
+# Database configuration: Turso, MySQL, PostgreSQL, o SQLite local
+DB_ENGINE = os.getenv('DB_ENGINE', 'sqlite')  # 'turso', 'mysql', 'postgresql', 'sqlite'
 DB_NAME = os.getenv('DB_NAME')
-if DB_NAME:
-    engine_backend = 'django.db.backends.mysql' if DB_ENGINE == 'mysql' else 'django.db.backends.postgresql'
+
+if DB_ENGINE == 'turso':
+    # Turso usa SQLite remoto, pero Django lo descarga como archivo local
+    # El archivo .db debe estar en el repo (descargado con CLI de Turso)
     DATABASES = {
         'default': {
-            'ENGINE': engine_backend,
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': base_dir / 'turso.db',  # Archivo descargado de Turso
+            'OPTIONS': {
+                'timeout': 20,
+            }
+        }
+    }
+elif DB_ENGINE == 'mysql':
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.mysql',
             'NAME': DB_NAME,
             'USER': os.getenv('DB_USER', 'root'),
             'PASSWORD': os.getenv('DB_PASSWORD', ''),
             'HOST': os.getenv('DB_HOST', '127.0.0.1'),
-            'PORT': os.getenv('DB_PORT', '3306' if DB_ENGINE == 'mysql' else '5432'),
+            'PORT': os.getenv('DB_PORT', '3306'),
             'OPTIONS': {
                 'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
             },
         }
     }
+elif DB_ENGINE == 'postgresql':
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': DB_NAME,
+            'USER': os.getenv('DB_USER', 'postgres'),
+            'PASSWORD': os.getenv('DB_PASSWORD', ''),
+            'HOST': os.getenv('DB_HOST', '127.0.0.1'),
+            'PORT': os.getenv('DB_PORT', '5432'),
+        }
+    }
 else:
+    # SQLite local (desarrollo, o fallback)
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
