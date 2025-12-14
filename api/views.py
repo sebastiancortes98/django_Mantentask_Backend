@@ -505,23 +505,51 @@ class AdminDashboardViewSet(viewsets.ViewSet):
     
     @action(detail=False, methods=['post'], url_path='cambiar-nivel-usuario/(?P<usuario_id>[^/.]+)')
     def cambiar_nivel_usuario(self, request, usuario_id=None):
-        """Cambiar nivel de acceso de un usuario"""
+        """
+        Cambiar nivel de acceso de un usuario
+        Solo administradores (codigo_nivel_acceso=4) pueden hacerlo
+        No se puede cambiar el propio nivel
+        """
         try:
+            # Validar que sea admin
+            if request.user.codigo_nivel_acceso != 4:
+                return Response(
+                    {'error': 'Solo administradores pueden cambiar niveles de acceso'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            
             usuario = Usuario.objects.get(id_usuario=usuario_id)
             nuevo_nivel = request.data.get('codigo_nivel_acceso')
             
-            if nuevo_nivel not in [1, 2, 3, 4]:
+            # No permitir cambiar el propio nivel
+            if request.user.id_usuario == usuario.id_usuario:
                 return Response(
-                    {'error': 'Nivel de acceso inválido'},
+                    {'error': 'No puedes cambiar tu propio nivel de acceso'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
+            # Validar nivel (1=Básico, 2=Intermedio, 3=Avanzado, 4=Administrador)
+            if nuevo_nivel not in [1, 2, 3, 4]:
+                return Response(
+                    {'error': 'Nivel de acceso inválido. Debe ser 1, 2, 3 o 4'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            nivel_anterior = usuario.codigo_nivel_acceso
             usuario.codigo_nivel_acceso = nuevo_nivel
             usuario.save()
+            
+            # Registrar en logs
+            logger.info(
+                f"[ADMIN LOG] Usuario {request.user.username} cambió nivel de {usuario.username} "
+                f"de {nivel_anterior} a {nuevo_nivel}"
+            )
             
             return Response({
                 'mensaje': f'Nivel de acceso actualizado a {usuario.get_codigo_nivel_acceso_display()}',
                 'usuario_id': usuario.id_usuario,
+                'usuario_username': usuario.username,
+                'nivel_anterior': nivel_anterior,
                 'nuevo_nivel': nuevo_nivel
             })
         except Usuario.DoesNotExist:
@@ -532,29 +560,55 @@ class AdminDashboardViewSet(viewsets.ViewSet):
     
     @action(detail=False, methods=['post'], url_path='cambiar-tipo-usuario/(?P<usuario_id>[^/.]+)')
     def cambiar_tipo_usuario(self, request, usuario_id=None):
-        """Cambiar tipo de usuario (Ingeniero/Encargado)"""
+        """
+        Cambiar tipo de usuario (Ingeniero/Encargado)
+        Solo administradores (codigo_nivel_acceso=4) pueden hacerlo
+        """
         try:
+            # Validar que sea admin
+            if request.user.codigo_nivel_acceso != 4:
+                return Response(
+                    {'error': 'Solo administradores pueden cambiar tipos de usuario'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            
             usuario = Usuario.objects.get(id_usuario=usuario_id)
             nuevo_tipo = request.data.get('codigo_tipo_usuario')
             
+            # Validar tipo (1=Ingeniero, 2=Encargado)
             if nuevo_tipo not in [1, 2]:
                 return Response(
-                    {'error': 'Tipo de usuario inválido'},
+                    {'error': 'Tipo de usuario inválido. Debe ser 1 (Ingeniero) o 2 (Encargado)'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
+            tipo_anterior = usuario.codigo_tipo_usuario
             usuario.codigo_tipo_usuario = nuevo_tipo
             usuario.save()
+            
+            # Registrar en logs
+            logger.info(
+                f"[ADMIN LOG] Usuario {request.user.username} cambió tipo de {usuario.username} "
+                f"de {tipo_anterior} a {nuevo_tipo}"
+            )
             
             return Response({
                 'mensaje': f'Tipo de usuario actualizado a {usuario.get_codigo_tipo_usuario_display()}',
                 'usuario_id': usuario.id_usuario,
+                'usuario_username': usuario.username,
+                'tipo_anterior': tipo_anterior,
                 'nuevo_tipo': nuevo_tipo
             })
         except Usuario.DoesNotExist:
             return Response(
                 {'error': 'Usuario no encontrado'},
                 status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            logger.error(f"Error al cambiar tipo de usuario: {str(e)}")
+            return Response(
+                {'error': f'Error al cambiar tipo: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
     
     @action(detail=False, methods=['post'], url_path='desactivar-usuario/(?P<usuario_id>[^/.]+)')
