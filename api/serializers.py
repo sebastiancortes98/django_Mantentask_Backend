@@ -128,6 +128,13 @@ class SolicitudSerializer(serializers.ModelSerializer):
 
 class SolicitudCreateUpdateSerializer(serializers.ModelSerializer):
     """Serializer para crear/actualizar solicitudes"""
+    def validate(self, attrs):
+        # Si no viene id_usuario, tomarlo del usuario autenticado (context)
+        request = self.context.get('request')
+        if not attrs.get('id_usuario') and request and request.user and request.user.is_authenticated:
+            attrs['id_usuario'] = request.user
+        return super().validate(attrs)
+
     class Meta:
         model = Solicitud
         fields = [
