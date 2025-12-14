@@ -50,24 +50,28 @@ class UsuarioSerializer(serializers.ModelSerializer):
     
     def create(self, validated_data):
         password = validated_data.pop('password', None)
+        validated_data.pop('contrasena', None)  # Ignorar si viene, Django lo maneja
+        
         # Defaults para nuevos usuarios
         validated_data.setdefault('codigo_tipo_usuario', 1)  # Ingeniero
         validated_data.setdefault('codigo_nivel_acceso', 1)  # Básico
         
-        usuario = Usuario(**validated_data)
+        usuario = Usuario.objects.create(**validated_data)
         if password:
             usuario.set_password(password)
-            usuario.contrasena = usuario.password
-        usuario.save()
+            usuario.save()
         return usuario
     
     def update(self, instance, validated_data):
         password = validated_data.pop('password', None)
+        validated_data.pop('contrasena', None)  # Ignorar si viene
+        
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
+        
         if password:
             instance.set_password(password)
-            instance.contrasena = instance.password
+        
         instance.save()
         return instance
 
