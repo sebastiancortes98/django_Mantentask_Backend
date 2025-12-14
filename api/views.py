@@ -21,6 +21,7 @@ from .serializers import (
     SolicitudSerializer, SolicitudCreateUpdateSerializer,
     InformeSerializer, InformeCreateUpdateSerializer, TaskSerializer
 )
+from .permissions import IsAdmin, IsAdminOrReadOnly, IsAuthenticatedOrReadOnly
 from .utils import generar_pdf_informe
 
 logger = logging.getLogger(__name__)
@@ -54,7 +55,6 @@ class UsuarioViewSet(viewsets.ModelViewSet):
     """ViewSet para gestionar usuarios"""
     queryset = Usuario.objects.all()
     serializer_class = UsuarioSerializer
-    permission_classes = [AllowAny]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['codigo_tipo_usuario', 'codigo_nivel_acceso', 'codigo_sucursal', 'is_active']
     search_fields = ['username', 'first_name', 'apellido_paterno', 'apellido_materno', 'correo_electronico']
@@ -62,12 +62,18 @@ class UsuarioViewSet(viewsets.ModelViewSet):
     
     def get_permissions(self):
         """
-        Permitir GET sin autenticación
-        Requerir autenticación para POST, PUT, PATCH, DELETE
+        Permitir GET sin autenticación para ciertos datos
+        POST requiere autenticación
+        PUT, PATCH, DELETE solo para admins
         """
-        if self.request.method in ['GET', 'HEAD', 'OPTIONS']:
-            return [AllowAny()]
-        return [IsAuthenticated()]
+        if self.action == 'create':
+            return [AllowAny()]  # Registro público
+        elif self.action in ['update', 'partial_update', 'destroy']:
+            return [IsAdmin()]  # Solo admin puede editar usuarios
+        elif self.action in ['me', 'ingenieros', 'encargados']:
+            return [IsAuthenticated()]  # Solo autenticados
+        else:
+            return [AllowAny()]  # GET sin autenticación
     
     @action(detail=False, methods=['get'])
     def me(self, request):
@@ -141,7 +147,6 @@ class MaquinaViewSet(viewsets.ModelViewSet):
 class SolicitudViewSet(viewsets.ModelViewSet):
     """ViewSet para gestionar solicitudes (tickets)"""
     queryset = Solicitud.objects.all()
-    permission_classes = [AllowAny]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['codigo_estado', 'codigo_maquinaria', 'id_usuario']
     search_fields = ['descripcion']
@@ -149,11 +154,17 @@ class SolicitudViewSet(viewsets.ModelViewSet):
     
     def get_permissions(self):
         """
-        Permitir GET sin autenticación
-        Requerir autenticación para POST, PUT, PATCH, DELETE
+        GET: Autenticados
+        POST: Autenticados
+        PUT/PATCH: Solo admin o el usuario propietario
+        DELETE: Solo admin
         """
-        if self.request.method in ['GET', 'HEAD', 'OPTIONS']:
-            return [AllowAny()]
+        if self.action in ['create', 'list', 'retrieve']:
+            return [IsAuthenticated()]
+        elif self.action in ['update', 'partial_update']:
+            return [IsAuthenticated()]  # Validar en perform_update
+        elif self.action == 'destroy':
+            return [IsAdmin()]
         return [IsAuthenticated()]
     
     def get_serializer_class(self):
@@ -452,3 +463,116 @@ class TaskViewSet(viewsets.ModelViewSet):
     queryset = Task.objects.all().order_by('-created_at')
     serializer_class = TaskSerializer
     permission_classes = [AllowAny]
+
+# Admin Dashboard ViewSet
+class AdminDashboardViewSet(viewsets.ViewSet):
+    """Endpoints para el panel de administración"""
+    permission_classes = [IsAdmin]
+    
+    @action(detail=False, methods=['get'])
+    def estadisticas(self, request):
+        """Obtener estadísticas generales del sistema"""
+        return Response({
+            'total_usuarios': Usuario.objects.count(),
+            'total_solicitudes': Solicitud.objects.count(),
+            'total_maquinas': Maquina.objects.count(),
+            'total_sucursales': Sucursal.objects.count(),
+            'solicitudes_pendientes': Solicitud.objects.filter(codigo_estado=1).count(),
+            'solicitudes_en_proceso': Solicitud.objects.filter(codigo_estado=2).count(),
+            'solicitudes_completadas': Solicitud.objects.filter(codigo_estado=3).count(),
+        })
+    
+    @action(detail=False, methods=['get'])
+    def usuarios_dashboard(self, request):
+        """Listar todos los usuarios para el admin"""
+        usuarios = Usuario.objects.all().values(
+            'id_usuario', 'username', 'first_name', 'apellido_paterno', 'apellido_materno',
+            'correo_electronico', 'codigo_tipo_usuario', 'codigo_nivel_acceso', 'is_active', 'date_joined'
+        )
+        return Response(list(usuarios))
+    
+    @action(detail=False, methods=['get'])
+    def solicitudes_dashboard(self, request):
+        """Listar todas las solicitudes para el admin con detalles"""
+        solicitudes = Solicitud.objects.select_related(
+            'codigo_maquinaria', 'id_usuario', 'codigo_estado'
+        ).values(
+            'codigo_solicitud', 'descripcion', 'fecha_creacion', 'fecha_actualizacion',
+            'codigo_estado__nombre_estado', 'id_usuario__username', 
+            'codigo_maquinaria__marca', 'codigo_maquinaria__modelo'
+        ).order_by('-fecha_creacion')
+        return Response(list(solicitudes))
+    
+    @action(detail=False, methods=['post'], url_path='cambiar-nivel-usuario/(?P<usuario_id>[^/.]+)')
+    def cambiar_nivel_usuario(self, request, usuario_id=None):
+        """Cambiar nivel de acceso de un usuario"""
+        try:
+            usuario = Usuario.objects.get(id_usuario=usuario_id)
+            nuevo_nivel = request.data.get('codigo_nivel_acceso')
+            
+            if nuevo_nivel not in [1, 2, 3, 4]:
+                return Response(
+                    {'error': 'Nivel de acceso inválido'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            usuario.codigo_nivel_acceso = nuevo_nivel
+            usuario.save()
+            
+            return Response({
+                'mensaje': f'Nivel de acceso actualizado a {usuario.get_codigo_nivel_acceso_display()}',
+                'usuario_id': usuario.id_usuario,
+                'nuevo_nivel': nuevo_nivel
+            })
+        except Usuario.DoesNotExist:
+            return Response(
+                {'error': 'Usuario no encontrado'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+    
+    @action(detail=False, methods=['post'], url_path='cambiar-tipo-usuario/(?P<usuario_id>[^/.]+)')
+    def cambiar_tipo_usuario(self, request, usuario_id=None):
+        """Cambiar tipo de usuario (Ingeniero/Encargado)"""
+        try:
+            usuario = Usuario.objects.get(id_usuario=usuario_id)
+            nuevo_tipo = request.data.get('codigo_tipo_usuario')
+            
+            if nuevo_tipo not in [1, 2]:
+                return Response(
+                    {'error': 'Tipo de usuario inválido'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            usuario.codigo_tipo_usuario = nuevo_tipo
+            usuario.save()
+            
+            return Response({
+                'mensaje': f'Tipo de usuario actualizado a {usuario.get_codigo_tipo_usuario_display()}',
+                'usuario_id': usuario.id_usuario,
+                'nuevo_tipo': nuevo_tipo
+            })
+        except Usuario.DoesNotExist:
+            return Response(
+                {'error': 'Usuario no encontrado'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+    
+    @action(detail=False, methods=['post'], url_path='desactivar-usuario/(?P<usuario_id>[^/.]+)')
+    def desactivar_usuario(self, request, usuario_id=None):
+        """Desactivar/Activar un usuario"""
+        try:
+            usuario = Usuario.objects.get(id_usuario=usuario_id)
+            usuario.is_active = not usuario.is_active
+            usuario.save()
+            
+            estado = 'activado' if usuario.is_active else 'desactivado'
+            return Response({
+                'mensaje': f'Usuario {estado} exitosamente',
+                'usuario_id': usuario.id_usuario,
+                'is_active': usuario.is_active
+            })
+        except Usuario.DoesNotExist:
+            return Response(
+                {'error': 'Usuario no encontrado'},
+                status=status.HTTP_404_NOT_FOUND
+            )

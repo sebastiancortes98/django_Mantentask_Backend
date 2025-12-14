@@ -3,7 +3,7 @@ from rest_framework import routers
 from .views import (
     TipoUsuarioViewSet, NivelAccesoViewSet, SucursalViewSet,
     UsuarioViewSet, EstadoViewSet, MaquinaViewSet,
-    SolicitudViewSet, InformeViewSet, TaskViewSet
+    SolicitudViewSet, InformeViewSet, TaskViewSet, AdminDashboardViewSet
 )
 from .auth import auth_login, auth_logout, auth_me, auth_register
 
@@ -17,11 +17,7 @@ router.register(r'estados', EstadoViewSet, basename='estado')
 router.register(r'maquinas', MaquinaViewSet, basename='maquina')
 router.register(r'solicitudes', SolicitudViewSet, basename='solicitud')
 router.register(r'informes', InformeViewSet, basename='informe')
-
-# Endpoint legacy
-router.register(r'tasks', TaskViewSet, basename='task')
-
-urlpatterns = [
+router.register(r'admin', AdminDashboardViewSet, basename='admin-dashboard')
     # Autenticación
     path('auth/login/', auth_login, name='auth-login'),
     path('auth/logout/', auth_logout, name='auth-logout'),
