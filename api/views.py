@@ -183,11 +183,11 @@ class SolicitudViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         solicitud = serializer.save()
         
-        # Enviar notificación por correo
-        try:
-            self._enviar_notificacion_nueva_solicitud(solicitud)
-        except Exception as e:
-            print(f"Error al enviar notificación: {e}")
+        # Enviar notificación por correo (DESHABILITADO temporalmente por timeout SMTP)
+        # try:
+        #     self._enviar_notificacion_nueva_solicitud(solicitud)
+        # except Exception as e:
+        #     print(f"Error al enviar notificación: {e}")
         
         # Retornar respuesta con serializer completo
         response_serializer = SolicitudSerializer(solicitud)
@@ -207,12 +207,12 @@ class SolicitudViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         solicitud = serializer.save()
         
-        # Si cambió el estado, enviar notificación
-        if estado_anterior != solicitud.codigo_estado:
-            try:
-                self._enviar_notificacion_cambio_estado(solicitud, estado_anterior)
-            except Exception as e:
-                print(f"Error al enviar notificación: {e}")
+        # Si cambió el estado, enviar notificación (DESHABILITADO temporalmente por timeout SMTP)
+        # if estado_anterior != solicitud.codigo_estado:
+        #     try:
+        #         self._enviar_notificacion_cambio_estado(solicitud, estado_anterior)
+        #     except Exception as e:
+        #         print(f"Error al enviar notificación: {e}")
         
         response_serializer = SolicitudSerializer(solicitud)
         return Response(response_serializer.data)
@@ -249,11 +249,11 @@ class SolicitudViewSet(viewsets.ModelViewSet):
             solicitud.codigo_estado = nuevo_estado
             solicitud.save()
             
-            # Enviar notificación
-            try:
-                self._enviar_notificacion_cambio_estado(solicitud, estado_anterior)
-            except Exception as e:
-                print(f"Error al enviar notificación: {e}")
+            # Enviar notificación (DESHABILITADO temporalmente por timeout SMTP)
+            # try:
+            #     self._enviar_notificacion_cambio_estado(solicitud, estado_anterior)
+            # except Exception as e:
+            #     print(f"Error al enviar notificación: {e}")
             
             serializer = SolicitudSerializer(solicitud)
             return Response(serializer.data)
