@@ -121,7 +121,7 @@ class SolicitudSerializer(serializers.ModelSerializer):
         fields = [
             'codigo_solicitud', 'codigo_maquinaria', 'maquina',
             'id_usuario', 'usuario', 'descripcion', 
-            'codigo_estado', 'estado', 'fecha_creacion', 
+            'codigo_estado', 'estado', 'fecha_creacion', 'fecha_programada',
             'fecha_actualizacion', 'tiene_informe'
         ]
         read_only_fields = ['fecha_creacion', 'fecha_actualizacion']
@@ -161,6 +161,7 @@ class SolicitudCreateUpdateSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             'id_usuario': {'required': False},
             'codigo_estado': {'required': False},
+            'fecha_programada': {'required': False},
         }
 
 
@@ -189,6 +190,17 @@ class InformeSerializer(serializers.ModelSerializer):
 
 class InformeCreateUpdateSerializer(serializers.ModelSerializer):
     """Serializer para crear/actualizar informes"""
+    def validate(self, attrs):
+        request = self.context.get('request')
+        if not attrs.get('id_usuario') and request and getattr(request.user, 'is_authenticated', False):
+            attrs['id_usuario'] = request.user
+        return super().validate(attrs)
+
+    def create(self, validated_data):
+        request = self.context.get('request')
+        if not validated_data.get('id_usuario') and request and getattr(request.user, 'is_authenticated', False):
+            validated_data['id_usuario'] = request.user
+        return super().create(validated_data)
     class Meta:
         model = Informe
         fields = [

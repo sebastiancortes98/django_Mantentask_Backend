@@ -39,3 +39,15 @@ class IsAuthenticatedOrReadOnly(BasePermission):
         if request.method in ['GET', 'HEAD', 'OPTIONS']:
             return True
         return request.user and request.user.is_authenticated
+
+
+class IsEngineer(BasePermission):
+    """Permite acceso solo a usuarios con tipo Ingeniero (codigo_tipo_usuario=1)"""
+    message = "Solo ingenieros pueden realizar esta acción."
+
+    def has_permission(self, request, view):
+        return (
+            request.user
+            and request.user.is_authenticated
+            and getattr(request.user, 'codigo_tipo_usuario', None) == 1
+        )

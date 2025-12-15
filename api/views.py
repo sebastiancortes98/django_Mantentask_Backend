@@ -21,7 +21,7 @@ from .serializers import (
     SolicitudSerializer, SolicitudCreateUpdateSerializer,
     InformeSerializer, InformeCreateUpdateSerializer, TaskSerializer
 )
-from .permissions import IsAdmin, IsAdminOrReadOnly, IsAuthenticatedOrReadOnly
+from .permissions import IsAdmin, IsAdminOrReadOnly, IsAuthenticatedOrReadOnly, IsEngineer
 from .utils import generar_pdf_informe
 
 logger = logging.getLogger(__name__)
@@ -148,7 +148,7 @@ class SolicitudViewSet(viewsets.ModelViewSet):
     """ViewSet para gestionar solicitudes (tickets)"""
     queryset = Solicitud.objects.all()
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['codigo_estado', 'codigo_maquinaria', 'id_usuario']
+    filterset_fields = ['codigo_estado', 'codigo_maquinaria', 'id_usuario', 'codigo_maquinaria__codigo_sucursal']
     search_fields = ['descripcion']
     ordering_fields = ['fecha_creacion', 'fecha_actualizacion']
     
@@ -192,6 +192,26 @@ class SolicitudViewSet(viewsets.ModelViewSet):
         # Retornar respuesta con serializer completo
         response_serializer = SolicitudSerializer(solicitud)
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=['get'], url_path='por-encargados')
+    def por_encargados(self, request):
+        """Listar solicitudes creadas por usuarios Encargados (tipo 2). Opcional: ?codigo_sucursal=ID"""
+        qs = self.queryset.filter(id_usuario__codigo_tipo_usuario=2)
+        codigo_sucursal = request.query_params.get('codigo_sucursal')
+        if codigo_sucursal:
+            qs = qs.filter(codigo_maquinaria__codigo_sucursal=codigo_sucursal)
+        serializer = SolicitudSerializer(qs, many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['get'], url_path='por-sucursal')
+    def por_sucursal(self, request):
+        """Listar solicitudes por sucursal: requiere ?codigo_sucursal=ID"""
+        codigo_sucursal = request.query_params.get('codigo_sucursal')
+        if not codigo_sucursal:
+            return Response({'error': 'Parametro codigo_sucursal requerido'}, status=status.HTTP_400_BAD_REQUEST)
+        qs = self.queryset.filter(codigo_maquinaria__codigo_sucursal=codigo_sucursal)
+        serializer = SolicitudSerializer(qs, many=True)
+        return Response(serializer.data)
     
     def update(self, request, *args, **kwargs):
         """Actualizar solicitud y notificar cambios de estado"""
@@ -334,13 +354,9 @@ class InformeViewSet(viewsets.ModelViewSet):
     ordering_fields = ['fecha_informe']
     
     def get_permissions(self):
-        """
-        Permitir GET sin autenticación
-        Requerir autenticación para POST, PUT, PATCH, DELETE
-        """
         if self.request.method in ['GET', 'HEAD', 'OPTIONS']:
             return [AllowAny()]
-        return [IsAuthenticated()]
+        return [IsEngineer()]
     
     def get_serializer_class(self):
         if self.action in ['create', 'update', 'partial_update']:

@@ -123,6 +123,8 @@ class Solicitud(models.Model):
     codigo_maquinaria = models.ForeignKey(Maquina, on_delete=models.CASCADE, related_name='solicitudes')
     id_usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE, related_name='solicitudes')
     descripcion = models.TextField()
+    # Fecha opcional indicada por el usuario (por ejemplo, fecha solicitada/programada)
+    fecha_programada = models.DateField(null=True, blank=True)
     codigo_estado = models.ForeignKey(Estado, on_delete=models.SET_DEFAULT, default=1, related_name='solicitudes')
     fecha_creacion = models.DateTimeField(auto_now_add=True)
     fecha_actualizacion = models.DateTimeField(auto_now=True)
