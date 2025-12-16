@@ -104,6 +104,7 @@ class Maquina(models.Model):
     codigo_sucursal = models.ForeignKey(Sucursal, on_delete=models.CASCADE, related_name='maquinas')
     modelo = models.CharField(max_length=200)
     marca = models.CharField(max_length=100)
+    numero_serie = models.CharField(max_length=100, null=True, blank=True)
     fecha_compra = models.DateField()
     fecha_instalacion = models.DateField()
     fecha_ultima_mantencion = models.DateField(null=True, blank=True)
@@ -145,6 +146,9 @@ class Informe(models.Model):
     codigo_maquinaria = models.ForeignKey(Maquina, on_delete=models.CASCADE, related_name='informes')
     id_usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE, related_name='informes')
     descripcion = models.TextField()
+    descripcion_trabajo = models.TextField(null=True, blank=True)
+    piezas_reemplazadas = models.TextField(null=True, blank=True)
+    recomendaciones = models.TextField(null=True, blank=True)
     fecha_informe = models.DateTimeField(auto_now_add=True)
     archivo_pdf = models.FileField(upload_to='informes/', null=True, blank=True)
     

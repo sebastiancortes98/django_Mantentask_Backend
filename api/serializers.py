@@ -98,7 +98,7 @@ class MaquinaSerializer(serializers.ModelSerializer):
         model = Maquina
         fields = [
             'codigo_maquinaria', 'codigo_sucursal', 'sucursal', 
-            'modelo', 'marca', 'fecha_compra', 'fecha_instalacion', 
+            'modelo', 'marca', 'numero_serie', 'fecha_compra', 'fecha_instalacion', 
             'fecha_ultima_mantencion'
         ]
 
@@ -155,7 +155,7 @@ class SolicitudCreateUpdateSerializer(serializers.ModelSerializer):
         model = Solicitud
         fields = [
             'codigo_solicitud', 'codigo_maquinaria', 'id_usuario', 
-            'descripcion', 'codigo_estado'
+            'descripcion', 'fecha_programada', 'codigo_estado'
         ]
         read_only_fields = ['codigo_solicitud']
         extra_kwargs = {
@@ -170,12 +170,14 @@ class InformeSerializer(serializers.ModelSerializer):
     maquina = MaquinaSimpleSerializer(source='codigo_maquinaria', read_only=True)
     usuario = UsuarioSimpleSerializer(source='id_usuario', read_only=True)
     archivo_pdf_url = serializers.SerializerMethodField()
+    codigo_informe = serializers.IntegerField(source='codigo_solicitud_id', read_only=True)
     
     class Meta:
         model = Informe
         fields = [
-            'codigo_solicitud', 'solicitud', 'codigo_maquinaria', 
-            'maquina', 'id_usuario', 'usuario', 'descripcion', 
+            'codigo_informe', 'codigo_solicitud', 'solicitud', 'codigo_maquinaria', 
+            'maquina', 'id_usuario', 'usuario', 'descripcion', 'descripcion_trabajo',
+            'piezas_reemplazadas', 'recomendaciones',
             'fecha_informe', 'archivo_pdf', 'archivo_pdf_url'
         ]
         read_only_fields = ['fecha_informe']
@@ -205,7 +207,8 @@ class InformeCreateUpdateSerializer(serializers.ModelSerializer):
         model = Informe
         fields = [
             'codigo_solicitud', 'codigo_maquinaria', 'id_usuario', 
-            'descripcion', 'archivo_pdf'
+            'descripcion', 'descripcion_trabajo', 'piezas_reemplazadas', 'recomendaciones',
+            'archivo_pdf'
         ]
 
 

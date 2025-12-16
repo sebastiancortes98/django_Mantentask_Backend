@@ -347,16 +347,40 @@ class SolicitudViewSet(viewsets.ModelViewSet):
 
 class InformeViewSet(viewsets.ModelViewSet):
     """ViewSet para gestionar informes"""
-    queryset = Informe.objects.all()
+    queryset = Informe.objects.select_related('codigo_solicitud', 'codigo_maquinaria', 'id_usuario')
     permission_classes = [AllowAny]
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
-    filterset_fields = ['codigo_maquinaria', 'id_usuario']
+    filterset_fields = ['codigo_solicitud', 'codigo_maquinaria', 'id_usuario']
     ordering_fields = ['fecha_informe']
     
     def get_permissions(self):
         if self.request.method in ['GET', 'HEAD', 'OPTIONS']:
             return [AllowAny()]
         return [IsEngineer()]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        # Filtros adicionales via query params
+        codigo_informe = self.request.query_params.get('codigo_informe')
+        codigo_solicitud = self.request.query_params.get('codigo_solicitud')
+        codigo_maquinaria = self.request.query_params.get('codigo_maquinaria')
+        fecha_informe = self.request.query_params.get('fecha_informe')
+        fecha_desde = self.request.query_params.get('fecha_desde')
+        fecha_hasta = self.request.query_params.get('fecha_hasta')
+
+        if codigo_informe:
+            qs = qs.filter(codigo_solicitud__codigo_solicitud=codigo_informe)
+        if codigo_solicitud:
+            qs = qs.filter(codigo_solicitud__codigo_solicitud=codigo_solicitud)
+        if codigo_maquinaria:
+            qs = qs.filter(codigo_maquinaria__codigo_maquinaria=codigo_maquinaria)
+        if fecha_informe:
+            qs = qs.filter(fecha_informe__date=fecha_informe)
+        if fecha_desde:
+            qs = qs.filter(fecha_informe__date__gte=fecha_desde)
+        if fecha_hasta:
+            qs = qs.filter(fecha_informe__date__lte=fecha_hasta)
+        return qs
     
     def get_serializer_class(self):
         if self.action in ['create', 'update', 'partial_update']:
