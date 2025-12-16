@@ -152,6 +152,15 @@ class SolicitudViewSet(viewsets.ModelViewSet):
     search_fields = ['descripcion']
     ordering_fields = ['fecha_creacion', 'fecha_actualizacion']
     
+    def get_queryset(self):
+        """Optimizar queries con select_related para evitar N+1"""
+        return Solicitud.objects.select_related(
+            'id_usuario',
+            'codigo_maquinaria',
+            'codigo_maquinaria__codigo_sucursal',
+            'codigo_estado'
+        )
+    
     def get_permissions(self):
         """
         GET: Autenticados
