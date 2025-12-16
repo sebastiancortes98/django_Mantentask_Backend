@@ -113,16 +113,20 @@ class MaquinaSimpleSerializer(serializers.ModelSerializer):
 class SolicitudSerializer(serializers.ModelSerializer):
     maquina = MaquinaSimpleSerializer(source='codigo_maquinaria', read_only=True)
     usuario = UsuarioSimpleSerializer(source='id_usuario', read_only=True)
+    ingeniero = UsuarioSimpleSerializer(source='ingeniero_asignado', read_only=True)
     estado = EstadoSerializer(source='codigo_estado', read_only=True)
     tiene_informe = serializers.SerializerMethodField()
     fecha_solicitud = serializers.SerializerMethodField()
     nombre_usuario = serializers.CharField(source='id_usuario.get_full_name', read_only=True)
+    nombre_ingeniero = serializers.CharField(source='ingeniero_asignado.get_full_name', read_only=True, allow_null=True)
     
     class Meta:
         model = Solicitud
         fields = [
             'codigo_solicitud', 'codigo_maquinaria', 'maquina',
-            'id_usuario', 'usuario', 'nombre_usuario', 'descripcion', 
+            'id_usuario', 'usuario', 'nombre_usuario', 
+            'ingeniero_asignado', 'ingeniero', 'nombre_ingeniero',
+            'descripcion', 
             'codigo_estado', 'estado', 'fecha_creacion', 'fecha_solicitud', 'fecha_programada',
             'fecha_actualizacion', 'tiene_informe'
         ]

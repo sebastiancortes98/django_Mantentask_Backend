@@ -119,10 +119,25 @@ class Maquina(models.Model):
 
 
 class Solicitud(models.Model):
-    """Solicitudes de mantenimiento (Tickets)"""
+    """
+    Solicitudes de mantenimiento (Tickets)
+    
+    Estados disponibles:
+    1 - Pendiente: Solicitud creada, esperando asignación
+    2 - En Proceso: Ingeniero trabajando en la solicitud
+    3 - Completada: Trabajo finalizado
+    """
     codigo_solicitud = models.AutoField(primary_key=True)
     codigo_maquinaria = models.ForeignKey(Maquina, on_delete=models.CASCADE, related_name='solicitudes')
-    id_usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE, related_name='solicitudes')
+    id_usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE, related_name='solicitudes_creadas')
+    ingeniero_asignado = models.ForeignKey(
+        Usuario, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        related_name='solicitudes_asignadas',
+        limit_choices_to={'codigo_tipo_usuario': 1}  # Solo ingenieros
+    )
     descripcion = models.TextField()
     # Fecha opcional indicada por el usuario (por ejemplo, fecha solicitada/programada)
     fecha_programada = models.DateField(null=True, blank=True)

@@ -154,12 +154,31 @@ class SolicitudViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         """Optimizar queries con select_related para evitar N+1"""
-        return Solicitud.objects.select_related(
+        queryset = Solicitud.objects.select_related(
             'id_usuario',
+            'ingeniero_asignado',
             'codigo_maquinaria',
             'codigo_maquinaria__codigo_sucursal',
             'codigo_estado'
         )
+        
+        # Filtros personalizados por query params
+        user = self.request.user if hasattr(self, 'request') else None
+        if user and user.is_authenticated:
+            # Filtro por estado usando aliases
+            if self.request.query_params.get('pendientes'):
+                queryset = queryset.filter(codigo_estado=1)
+            elif self.request.query_params.get('en_proceso'):
+                queryset = queryset.filter(codigo_estado=2)
+            elif self.request.query_params.get('completadas'):
+                queryset = queryset.filter(codigo_estado=3)
+            
+            # Filtro por ingeniero
+            ingeniero_id = self.request.query_params.get('id_ingeniero')
+            if ingeniero_id:
+                queryset = queryset.filter(ingeniero_asignado__id_usuario=ingeniero_id)
+        
+        return queryset
     
     def get_permissions(self):
         """
@@ -262,35 +281,157 @@ class SolicitudViewSet(viewsets.ModelViewSet):
     
     @action(detail=True, methods=['post'])
     def cambiar_estado(self, request, pk=None):
-        """Cambiar estado de solicitud"""
+        """
+        Cambiar estado de solicitud
+        
+        Reglas de negocio:
+        - Encargados/Admin: pueden cambiar cualquier solicitud a cualquier estado
+        - Ingenieros: solo pueden cambiar solicitudes asignadas a ellos
+        - Ingenieros: solo pueden avanzar estados (1→2→3), no retroceder
+        
+        Estados válidos:
+        1 - Pendiente
+        2 - En Proceso
+        3 - Completada
+        """
         solicitud = self.get_object()
         nuevo_estado_id = request.data.get('codigo_estado')
         
+        # Validar que viene el estado
         if not nuevo_estado_id:
             return Response(
                 {'error': 'codigo_estado requerido'}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
         
+        # Validar que el estado sea válido (1, 2 o 3)
+        try:
+            nuevo_estado_id = int(nuevo_estado_id)
+            if nuevo_estado_id not in [1, 2, 3]:
+                return Response(
+                    {'error': 'Estado debe ser 1 (Pendiente), 2 (En Proceso) o 3 (Completada)'}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        except (ValueError, TypeError):
+            return Response(
+                {'error': 'codigo_estado debe ser un número entero'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        user = request.user
+        estado_anterior_id = solicitud.codigo_estado.codigo_estado
+        
+        # Validar permisos según tipo de usuario
+        es_admin = user.codigo_nivel_acceso == 4
+        es_encargado = user.codigo_tipo_usuario == 2
+        es_ingeniero = user.codigo_tipo_usuario == 1
+        es_ingeniero_asignado = solicitud.ingeniero_asignado and solicitud.ingeniero_asignado.id_usuario == user.id_usuario
+        
+        # Admin y encargados pueden cambiar cualquier solicitud a cualquier estado
+        if es_admin or es_encargado:
+            pass  # Tienen permiso total
+        # Ingenieros solo pueden cambiar solicitudes asignadas a ellos
+        elif es_ingeniero:
+            if not es_ingeniero_asignado:
+                return Response(
+                    {'error': 'Solo puedes cambiar el estado de solicitudes asignadas a ti'}, 
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            # Validar que solo avancen estados (no retrocedan)
+            if nuevo_estado_id < estado_anterior_id:
+                return Response(
+                    {'error': 'No puedes retroceder el estado de una solicitud'}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        else:
+            return Response(
+                {'error': 'No tienes permiso para cambiar el estado de solicitudes'}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Obtener el objeto Estado
         try:
             nuevo_estado = Estado.objects.get(codigo_estado=nuevo_estado_id)
             estado_anterior = solicitud.codigo_estado
             solicitud.codigo_estado = nuevo_estado
             solicitud.save()
             
+            logger.info(f"Usuario {user.username} cambió estado de solicitud #{solicitud.codigo_solicitud} de {estado_anterior.nombre_estado} a {nuevo_estado.nombre_estado}")
+            
             # Enviar notificación (DESHABILITADO temporalmente por timeout SMTP)
             # try:
             #     self._enviar_notificacion_cambio_estado(solicitud, estado_anterior)
             # except Exception as e:
-            #     print(f"Error al enviar notificación: {e}")
+            #     logger.error(f"Error al enviar notificación: {e}")
             
             serializer = SolicitudSerializer(solicitud)
-            return Response(serializer.data)
+            response_data = serializer.data
+            response_data['mensaje'] = f'Estado actualizado correctamente a {nuevo_estado.nombre_estado}'
+            
+            return Response(response_data, status=status.HTTP_200_OK)
         except Estado.DoesNotExist:
             return Response(
                 {'error': 'Estado no válido'}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
+    
+    @action(detail=True, methods=['post'])
+    def asignar_ingeniero(self, request, pk=None):
+        """
+        Asignar ingeniero a una solicitud
+        
+        Solo accesible para encargados y administradores
+        
+        Request body:
+        {
+            "id_ingeniero": 5
+        }
+        """
+        solicitud = self.get_object()
+        id_ingeniero = request.data.get('id_ingeniero')
+        
+        # Validar permiso: solo encargados y admin
+        user = request.user
+        es_admin = user.codigo_nivel_acceso == 4
+        es_encargado = user.codigo_tipo_usuario == 2
+        
+        if not (es_admin or es_encargado):
+            return Response(
+                {'error': 'Solo encargados y administradores pueden asignar ingenieros'}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Validar que viene el id_ingeniero
+        if not id_ingeniero:
+            return Response(
+                {'error': 'id_ingeniero requerido'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Validar que el ingeniero existe y es ingeniero (tipo 1)
+        try:
+            ingeniero = Usuario.objects.get(
+                id_usuario=id_ingeniero,
+                codigo_tipo_usuario=1,  # Solo ingenieros
+                is_active=True
+            )
+        except Usuario.DoesNotExist:
+            return Response(
+                {'error': 'Ingeniero no encontrado o no válido'}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Asignar ingeniero
+        solicitud.ingeniero_asignado = ingeniero
+        solicitud.save()
+        
+        logger.info(f"Usuario {user.username} asignó ingeniero {ingeniero.username} a solicitud #{solicitud.codigo_solicitud}")
+        
+        serializer = SolicitudSerializer(solicitud)
+        response_data = serializer.data
+        response_data['mensaje'] = f'Ingeniero {ingeniero.get_full_name()} asignado correctamente'
+        
+        return Response(response_data, status=status.HTTP_200_OK)
     
     def _enviar_notificacion_nueva_solicitud(self, solicitud):
         """Enviar correo de notificación por nueva solicitud"""
