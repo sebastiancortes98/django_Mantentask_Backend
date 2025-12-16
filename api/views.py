@@ -8,6 +8,7 @@ from django.core.mail.backends.base import BaseEmailBackend
 from django.conf import settings
 from django.http import FileResponse
 from django.utils import timezone
+import os
 from django_filters.rest_framework import DjangoFilterBackend
 import logging
 
@@ -557,8 +558,13 @@ class InformeViewSet(viewsets.ModelViewSet):
         """Descargar PDF del informe"""
         informe = self.get_object()
         
-        if not informe.archivo_pdf:
-            # Generar PDF si no existe
+        # Regenerar si no hay archivo o fue purgado del disco
+        try:
+            file_missing = not informe.archivo_pdf or not os.path.exists(informe.archivo_pdf.path)
+        except Exception:
+            file_missing = True
+
+        if file_missing:
             try:
                 generar_pdf_informe(informe)
             except Exception as e:
@@ -566,6 +572,8 @@ class InformeViewSet(viewsets.ModelViewSet):
                     {'error': f'Error al generar PDF: {str(e)}'}, 
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
+            # Reload instance to ensure FileField is fresh
+            informe.refresh_from_db()
         
         try:
             return FileResponse(
