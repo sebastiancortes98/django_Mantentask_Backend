@@ -48,6 +48,54 @@ class UsuarioSerializer(serializers.ModelSerializer):
             'codigo_sucursal': {'required': False},  # Opcional
         }
     
+    def validate(self, attrs):
+        """
+        Validar combinaciones de tipo_usuario y nivel_acceso
+        
+        Reglas:
+        - Ingenieros (1): nivel 1 (Básico) o 2 (Intermedio)
+        - Encargados (2): nivel 2 (Intermedio), 3 (Avanzado) o 4 (Administrador)
+        - Nivel 4 (Administrador): debe ser encargado o tener is_superuser=True
+        """
+        tipo_usuario = attrs.get('codigo_tipo_usuario', getattr(self.instance, 'codigo_tipo_usuario', None))
+        nivel_acceso = attrs.get('codigo_nivel_acceso', getattr(self.instance, 'codigo_nivel_acceso', None))
+        
+        # Si no hay valores, saltar validación (se usarán defaults)
+        if tipo_usuario is None or nivel_acceso is None:
+            return attrs
+        
+        # Validar que tipo_usuario sea válido (1 o 2)
+        if tipo_usuario not in [1, 2]:
+            raise serializers.ValidationError({
+                'codigo_tipo_usuario': 'Debe ser 1 (Ingeniero) o 2 (Encargado)'
+            })
+        
+        # Validar que nivel_acceso sea válido (1-4)
+        if nivel_acceso not in [1, 2, 3, 4]:
+            raise serializers.ValidationError({
+                'codigo_nivel_acceso': 'Debe ser entre 1 (Básico) y 4 (Administrador)'
+            })
+        
+        # Regla 1: Ingenieros no deberían tener nivel de administrador
+        if tipo_usuario == 1 and nivel_acceso == 4:
+            raise serializers.ValidationError({
+                'codigo_nivel_acceso': 'Los ingenieros no pueden tener nivel de Administrador (4). Use nivel 1 o 2.'
+            })
+        
+        # Regla 2: Ingenieros solo nivel 1 o 2
+        if tipo_usuario == 1 and nivel_acceso > 2:
+            raise serializers.ValidationError({
+                'codigo_nivel_acceso': 'Los ingenieros solo pueden tener nivel Básico (1) o Intermedio (2).'
+            })
+        
+        # Regla 3: Encargados deben tener al menos nivel intermedio
+        if tipo_usuario == 2 and nivel_acceso == 1:
+            raise serializers.ValidationError({
+                'codigo_nivel_acceso': 'Los encargados deben tener nivel Intermedio (2) o superior.'
+            })
+        
+        return attrs
+    
     def create(self, validated_data):
         password = validated_data.pop('password', None)
         validated_data.pop('contrasena', None)  # Ignorar si viene, Django lo maneja
