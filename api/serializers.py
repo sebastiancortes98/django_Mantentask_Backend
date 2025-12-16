@@ -107,7 +107,7 @@ class MaquinaSimpleSerializer(serializers.ModelSerializer):
     """Serializer simplificado para relaciones"""
     class Meta:
         model = Maquina
-        fields = ['codigo_maquinaria', 'modelo', 'marca']
+        fields = ['codigo_maquinaria', 'modelo', 'marca', 'numero_serie']
 
 
 class SolicitudSerializer(serializers.ModelSerializer):
@@ -115,19 +115,24 @@ class SolicitudSerializer(serializers.ModelSerializer):
     usuario = UsuarioSimpleSerializer(source='id_usuario', read_only=True)
     estado = EstadoSerializer(source='codigo_estado', read_only=True)
     tiene_informe = serializers.SerializerMethodField()
+    fecha_solicitud = serializers.SerializerMethodField()
     
     class Meta:
         model = Solicitud
         fields = [
             'codigo_solicitud', 'codigo_maquinaria', 'maquina',
             'id_usuario', 'usuario', 'descripcion', 
-            'codigo_estado', 'estado', 'fecha_creacion', 'fecha_programada',
+            'codigo_estado', 'estado', 'fecha_creacion', 'fecha_solicitud', 'fecha_programada',
             'fecha_actualizacion', 'tiene_informe'
         ]
         read_only_fields = ['fecha_creacion', 'fecha_actualizacion']
     
     def get_tiene_informe(self, obj):
         return hasattr(obj, 'informe')
+
+    def get_fecha_solicitud(self, obj):
+        # Alias para compatibilidad con el frontend
+        return obj.fecha_creacion.date().isoformat() if obj.fecha_creacion else None
 
 
 class SolicitudCreateUpdateSerializer(serializers.ModelSerializer):
